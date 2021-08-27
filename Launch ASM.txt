@@ -1,0 +1,6 @@
+!IF( ISPICKVAL( Account.Market__c , "US") ,
+URLFOR('https://qa-v2.subprod-optavia.com/assisted-service/emulate?customerId='+Account.Email__c), '')}
+{!IF( ISPICKVAL( Account.Market__c , "SG") ,
+URLFOR('https://qa-v2.subprod-optavia.com/SG/assisted-service/emulate?customerId='+Account.Email__c), '')}
+{!IF( ISPICKVAL( Account.Market__c , "HK") ,
+URLFOR('https://qa-v2.subprod-optavia.com/HK/assisted-service/emulate?customerId='+Account.Email__c),'')}

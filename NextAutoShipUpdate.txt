@@ -1,0 +1,363 @@
+AP_PTNextAutoShipUpdate.cmp
+**************************************************************************
+<aura:component controller="AP_PTNextAutoShipUpdateController" implements="lightning:availableForFlowScreens,force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickActionWithoutHeader" access="global">
+    <!-- Add the styles to the Modal Box -->
+    <aura:html tag="style">
+        .slds-modal__container { 
+        width : 40% !important; max-width : 80% !important; 
+        } 
+    </aura:html>
+    
+    <aura:handler   name=  "init" value="{!this}" action="{!c.doInit}" />
+    <aura:attribute name="isOpen" type="boolean" default="true"/>
+    <aura:attribute name="isSubmit" type="boolean" default="false"/>
+    <aura:attribute name="recordItemId" type="String" />
+    <aura:attribute name="recordId" type="String" access="global"/>
+    <aura:attribute name="Olddate" type="datetime"  access="global"/>
+    <aura:attribute name="lastAutoShip" type="datetime"  access="global"/>
+    <aura:attribute name="recordItemResult" type="premiertemplates__x"/>
+    <aura:attribute name="loaded" type="Boolean" default="false" />
+    
+    <!--Use aura:if tag to display Model Box, on the bese of conditions. [isOpen boolean attribute] -->
+    <!--###### MODAL BOX Start######-->
+    <div>
+        <aura:if isTrue="{!v.isOpen}">
+            <div style="text-align: center;"> <Strong><span class="slds-page-header__title slds-truncate slds-text-heading_large" title="Next AutoShip Date" alt="Next AutoShip Date">Update Next AutoShip Date</span></Strong></div>
+                    <div class="spinner">
+            <aura:renderIf isTrue="{!v.loaded}">
+                <lightning:spinner alternativeText="Loading" />
+            </aura:renderIf>
+        </div>
+            <hr/>
+            <lightning:layout>
+                <lightning:layoutItem size="12">
+                    <!--<lightning:input class="slds-var-m-bottom_x-small input-padding-fixed" label="Next AutoShip Date" disabled="true" placeholder="{!v.recordItemResult.nextAutoshipDate__c}" type="text" variant="standard"></lightning:input>-->
+                    <ui:inputDatetime aura:id="today" label="" class="field" value="{!v.recordItemResult.nextAutoshipDate__c}" displayDatePicker="true" />
+                </lightning:layoutItem>
+            </lightning:layout>
+            <br><br></br></br>
+            <div align="center">
+                <lightning:button class="cancel-button-fixed" variant="neutral" label="Cancel Request" title="Cancel Request" onclick="{! c.closeModal }" />
+                <lightning:button class="submit-button-fixed" variant="brand" label="Submit Request" title="Submit Request" onclick="{!c.validate }" />
+            </div>
+        </aura:if>
+    </div>
+</aura:component>
+
+
+
+AP_PTNextAutoShipUpdateController.Js
+******************************************************************************************************************************************************
+
+({
+    doInit: function(component, event, helper) {
+        component.set("v.loaded", true);
+       	var recordId = component.get("v.recordId");
+        //helper.setSectionBody(component, event, helper, recordId);
+        
+        console.log("Record ID: " + recordId);
+        
+        if(recordId != 'undefined' && recordId != null)        {
+            component.set("v.recordItemId", recordId);
+            helper.setSectionBody(component, event, helper, recordId);        
+        }
+    },
+    
+    closeModal: function(component, event, helper) {
+        component.set("v.isOpen", false);
+        $A.get("e.force:closeQuickAction").fire();
+    },
+    
+    validate: function(component, event, helper) {
+        var recordId = component.get("v.recordId");
+        var Olddate = component.get("v.Olddate");
+        var lastAutoShipdate = component.get("v.lastAutoShip");
+        var Newdate= component.find('today').get('v.value');
+        var Olddatevalue = new Date(Olddate);
+        var Newdatevalue = new Date(Newdate);
+        var lastAutoShipdatevalue = new Date(lastAutoShipdate);
+        var lastAutoShipdatevalueinEST = lastAutoShipdatevalue.toLocaleString("en-US", { timeZone: "America/New_York" });
+        lastAutoShipdatevalueinEST= new Date(lastAutoShipdatevalueinEST);
+        var NewValueinEST = Newdatevalue.toLocaleString("en-US", { timeZone: "America/New_York" });
+        NewValueinEST= new Date(NewValueinEST);
+        var ESTtimenow = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+        ESTtimenow = new Date(ESTtimenow);
+        console.log("Old date " + Olddate );
+        console.log("Newdate " + Newdate );
+        console.log("Newdatevalue " + Newdatevalue );
+        console.log("NewValueinEST " + NewValueinEST );
+        console.log("ESTtimenow " + ESTtimenow );
+        console.log("lastAutoShipdatevalueinEST " + lastAutoShipdatevalueinEST );
+        console.log(Math.floor((NewValueinEST)-(ESTtimenow))/ 86400000);
+        console.log(Math.floor((NewValueinEST)-(lastAutoShipdatevalue))/ 86400000);
+        if(NewValueinEST<ESTtimenow)
+        {
+           helper.showToastLessDate(component,event);
+           component.set("v.recordItemResult.nextAutoshipDate__c", Olddate);
+        }
+      else if (NewValueinEST>ESTtimenow && (((NewValueinEST)-(ESTtimenow))/8.64e7)<1)
+        {
+            helper.showTodayToast(component,event);
+        }
+       else if((((NewValueinEST)-(lastAutoShipdatevalueinEST))/8.64e7)>60 )
+        {
+            if(component.get("v.isSubmit")==false)
+            {
+            helper.showToastGreaterDate(component,event);
+            component.set("v.isSubmit", true);  
+            }
+            else
+            {
+                //helper.showSuccessToast(component,event);
+                helper.submitrequest(component,event,helper,recordId,Newdate);
+            }
+        }
+        else
+        {
+            //helper.showSuccessToast(component,event);
+            helper.submitrequest(component,event,helper,recordId,Newdate);
+        }
+    },
+})
+
+
+AP_PTNextAutoShipUpdateHelper.Js
+***************************************************************************
+({
+	setSectionBody : function(component, event, helper, recordId) {
+        console.log('Inside setSectionbody');
+
+		var action = component.get("c.getOutputFields");
+        action.setParams({
+            "recordId": recordId
+        });
+        action.setCallback(this, function(response){
+            var state = response.getState();
+            console.log('state '  + state);
+            if (component.isValid() && state === "SUCCESS") {
+                var sectionFields = response.getReturnValue();
+                if(!$A.util.isEmpty(sectionFields) && !$A.util.isUndefined(sectionFields)){
+                    component.set("v.recordItemResult", sectionFields);
+                    component.set("v.Olddate", component.get("v.recordItemResult.nextAutoshipDate__c"));
+                    component.set("v.lastAutoShip", component.get("v.recordItemResult.lastAutoshipDate__c"));
+                    component.set("v.loaded", false);
+                }
+            }
+        });
+        $A.enqueueAction(action);
+	},   
+    
+    
+    submitrequest : function(component,event,helper,recordId,Newdate)
+    {
+    component.set("v.loaded", true);
+    var action = component.get("c.updatePremierTemplate");
+    action.setParams({
+        "recordId": recordId,
+        "nextAutoShipDate":Newdate
+    });
+    action.setCallback(this, function(response){
+        var state = response.getState();
+        console.log("state " , state);
+        if (component.isValid() && state === "SUCCESS") 
+        {
+                var result = response.getReturnValue();
+                console.log("result " , result , "state " , state);
+                this.showSuccessToast(component, event);
+        }
+            else if (state === "ERROR") {
+            var errors = response.getError();
+              console.log("errors " , errors);
+            if (errors) {
+                if (errors[0] && errors[0].message) {
+                    console.log("Error message: " + errors[0].message);
+                    
+                    var toastEvent = $A.get("e.force:showToast");
+                    toastEvent.setParams({
+                        "title": "Error!",
+                        "message": errors[0].message + '. Ohh!! something went wrong, please contact to the administrator.'
+                    });
+                    toastEvent.fire();
+                }
+                  $A.get("e.force:closeQuickAction").fire();
+            } else {
+                console.log("Unknown error");
+            }
+        }
+
+    });
+    $A.enqueueAction(action);
+},
+    
+    showToastLessDate : function(component, event) {
+        var toastEvent = $A.get("e.force:showToast");
+        toastEvent.setParams({
+            title : 'Woops! You cannot select a past date.',
+            message: 'Please choose another date',
+            messageTemplate: 'Please select',
+            key: 'info_alt',
+            type: 'warning',
+            mode: 'dismissible'
+        });
+        toastEvent.fire();
+    },
+
+    showToastGreaterDate : function(component, event) {
+        var toastEvent = $A.get("e.force:showToast");
+        toastEvent.setParams({
+            title : 'Woops! Selected date exceeds 60 days, You may lose rewards!',
+            message: 'If you would like to proceed, Submit the request again or choose a prior date',
+            messageTemplate: 'Please select',
+            key: 'info_alt',
+            type: 'warning',
+            mode: 'dismissible'
+        });
+        toastEvent.fire();
+    },
+
+    showTodayToast : function(component, event) {
+        var toastEvent = $A.get("e.force:showToast");
+        toastEvent.setParams({
+            title : 'Woops! Todays date cannot be selected.',
+            message: 'Select a future date',
+            messageTemplate: 'Please select',
+            key: 'info_alt',
+            type: 'warning',
+            mode: 'dismissible'
+        });
+        toastEvent.fire();
+    },
+
+
+    showSuccessToast : function(component, event) {
+            var toastEvent = $A.get("e.force:showToast");
+            toastEvent.setParams({
+                title: 'Success!',
+                duration:'1000',
+                key: 'info_alt',
+                message: 'The record has been updated successfully.',
+                type: 'success',
+                mode: 'pester'
+            });
+            toastEvent.fire();
+            $A.get("e.force:closeQuickAction").fire();
+        }   
+    })
+
+
+AP_PTNextAutoShipUpdateController.apxc
+*******************************************************************************************************************
+
+public with sharing class AP_PTNextAutoShipUpdateController {
+    public AP_PTNextAutoShipUpdateController() 
+    {
+        string userId = UserInfo.getUserId();
+    }
+    
+    //Mocked records for External object used for test class. 
+    @TestVisible public static premiertemplates__x mockedRecord = new premiertemplates__x(           
+        nextAutoshipDate__c= Date.today(),
+        customerId__c='1235678',
+        ExternalId ='1111111111111111111'); 
+    
+    
+    @AuraEnabled
+    public static premiertemplates__x getOutputFields(String recordId)
+    {
+        premiertemplates__x premtemplate = new premiertemplates__x();
+        if(!Test.isRunningTest())
+        {
+            premtemplate = [SELECT id,nextAutoshipDate__c,lastAutoshipDate__c FROM premiertemplates__x  WHERE Id = : recordId WITH SECURITY_ENFORCED LIMIT 1];  
+            system.debug('premtemplate' + premtemplate);         
+        }
+        
+        Timezone tz = Timezone.getTimeZone('America/New_York');
+        if(Test.isRunningTest())
+        {
+            premtemplate=mockedRecord;
+        }
+        return premtemplate ;
+        
+    }
+    
+    @AuraEnabled
+    public static void updatePremierTemplate(String recordId, string  nextAutoShipDate)
+    {
+        Database.SaveResult sr;
+        premierTemplates__x prem = new premierTemplates__x();
+        System.debug('recordId ' + recordId + 'nextAutoShipDate ' + nextAutoShipDate);
+        string errormessage;
+        string premId;
+        if(!Test.isRunningTest())
+        {
+            prem  = [select Id,billingAddress__c, cardNumber__c, cardType__c, currencyCode__c, customerId__c, 
+                     nextAutoshipDate__c,lastAutoshipDate__c,orderLines__c,orderNumber__c,  promotionApplied__c,
+                     rewardsToBeApplied__c, rewardsToBeEarned__c, shipping__c, shippingAddress__c, status__c,
+                     subtotal__c, tax__c, total__c, totalDiscounts__c, wellnessCreditToBeApplied__c from premierTemplates__x 
+                     where Id = : recordId WITH SECURITY_ENFORCED];
+            
+            
+            Datetime dt = (DateTime)JSON.deserialize('"' + nextAutoShipDate + '"', DateTime.class);
+            prem.nextAutoshipDate__c =dt;
+            system.debug( ' prem.nextAutoshipDate__c ' +   prem.nextAutoshipDate__c);
+            
+           sr = Database.updateImmediate(prem);  
+             system.debug('Update Result: ' + sr);
+             }
+      /*  if (sr.isSuccess()) 
+        {
+            System.debug('Successfully Update. ID: ' + sr.getId());
+            // premId=sr.getId();
+        }
+        else 
+        {*/
+        if(Test.isRunningTest())
+        {
+          sr = (Database.SaveResult)
+        JSON.deserialize('{"success":false,"errors":[{"message":"You cannot do this...","statusCode":"FIELD_CUSTOM_VALIDATION_EXCEPTION"}]}', Database.SaveResult.class);
+        }
+            for(Database.Error err : sr.getErrors()) 
+            {
+                System.debug('Error ODATA: ' + err.getMessage());
+                // premId=err.getMessage();
+                AuraHandledException e = new AuraHandledException(err.getMessage());
+                e.setMessage(err.getMessage());
+                system.debug(e);
+                throw e;
+            }
+        System.debug('########### IDs >>>>> ' + premId);
+        // return  premId;
+    } 
+    
+}
+
+=========================================================================================================================================================
+
+@isTest
+public class AP_PTNextAutoShipUpdateControllerTest 
+{
+    static testMethod void myTest() {  
+        Date dtToday = Date.today(); 
+        Date myDate = Date.newInstance( dtToday.year(), 10, 1 );
+        Time myTime = Time.newInstance( 3, 3, 3, 0 );
+        DateTime objDT = DateTime.newInstance( myDate, myTime );
+        AP_PTNextAutoShipUpdateController.getOutputFields('1111111111111111111');
+        try
+        {
+        AP_PTNextAutoShipUpdateController.updatePremierTemplate('1111111111111111111','');
+        }
+        catch(Exception e)
+        {
+            system.debug('Exception on update');
+        }
+    }
+    
+    
+    /*   @isTest static void ExternalObj()
+{
+Id premId = [select id from premiertemplates__x where customerId__c='1235678'].Id;
+premiertemplates__x ptemp = AP_PTNextAutoShipUpdateController.getOutputFields(premId);
+} */
+    
+}
+}

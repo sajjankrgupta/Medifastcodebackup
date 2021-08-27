@@ -1,0 +1,100 @@
+APUpdateDeafult.html
+*************************************************************************************
+
+<template>
+    <template if:false={defflag}>
+    <div class="slds-var-m-around_medium">
+        <lightning-button label="Update  Default Flag" variant="brand" onclick={updateAddress}></lightning-button>
+        </div>
+    </template>
+</template>
+
+
+APUpdateDeafult.js
+**************************************************************************************
+
+
+import {
+    LightningElement,
+    track,api,wire
+    } from 'lwc';
+    import {
+    ShowToastEvent
+    } from 'lightning/platformShowToastEvent';
+    import ADDRESS_OBJECT from '@salesforce/schema/Address__c';
+    import DEFAULTFLAG_FIELD from '@salesforce/schema/Address__c.Default_Address__c';
+    
+    
+    import {
+    getRecord,
+    updateRecord,
+    generateRecordInputForUpdate,
+    getFieldValue,
+    } from 'lightning/uiRecordApi';
+    import {
+    CurrentPageReference
+    } from 'lightning/navigation';
+    
+    
+    export default class Updaterecord extends LightningElement {
+    @api recordId;
+    @track DefaultFlag = true;
+
+    @wire(getRecord, { recordId: '$recordId', fields: [DEFAULTFLAG_FIELD]})
+    address;
+
+    get defflag() {
+        return getFieldValue(this.address.data, DEFAULTFLAG_FIELD);
+    }
+    
+    updateAddress() {
+    let record = {
+    fields: {
+        Id: this.recordId,
+        Default_Address__c:this.DefaultFlag,
+    },
+    };
+    
+    updateRecord(record)
+    .then(() => {
+    this.dispatchEvent(
+        new ShowToastEvent({
+            title: 'Success',
+            message: 'Default Address updated',
+            variant: 'success'
+        })
+    );
+    })
+    .catch(error => {
+    this.dispatchEvent(
+        new ShowToastEvent({
+            title: 'Error creating record',
+            message: error.body.message,
+            variant: 'error'
+        })
+    );
+    });
+    
+    }
+    }
+
+APUpdateDeafult.js-meta.xml
+******************************************************************************
+
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata" fqn="helloWorld">
+    <apiVersion>45.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__RecordPage</target>
+        <target>lightning__HomePage</target>
+    </targets>
+</LightningComponentBundle>
+
+
+
+
+
+
+
