@@ -1,0 +1,11 @@
+trigger ap_AccountTrigger on Account (before insert,before update) 
+{
+  AccountTriggerHandler.hasExecuted= true;
+
+    AccountTriggerHandler handler = new AccountTriggerHandler(Trigger.isExecuting, Trigger.size);
+    
+    if(Trigger.isUpdate && Trigger.isBefore)
+    {
+        handler.updateAccfields(Trigger.new, Trigger.oldMap);
+    }
+}
